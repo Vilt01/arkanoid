@@ -1,0 +1,1 @@
+console.log("[arkanoid] main.js loaded");
