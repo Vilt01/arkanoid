@@ -13,6 +13,15 @@
     />
 
     <link rel="stylesheet" href="css/style.css" />
+
+    <!-- PixiJS v8 через importmap. Позволяет писать import { Application } from 'pixi.js' -->
+    <script type="importmap">
+    {
+        "imports": {
+            "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.mjs"
+        }
+    }
+    </script>
 </head>
 <body>
     <div id="game-container"></div>

@@ -8,7 +8,6 @@ WIDTH: 110,
 HEIGHT: 16,
 SPEED: 8,
 Y_OFFSET: 40, // отступ от нижнего края
-
 };
 
 export const BALL = {
@@ -41,4 +40,4 @@ export const COLORS = {
         0x33aaff,
         0xaa44ff, // нижний ряд — фиолетовый
     ],
-}
+};
