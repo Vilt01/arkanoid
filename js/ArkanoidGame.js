@@ -2,6 +2,7 @@ import { Application, Container } from 'pixi.js';
 import { GAME, COLORS, SCORE_PER_BRICK, STATE, STARTING_LIVES } from './utils/constants.js';
 import { InputSystem } from './systems/InputSystem.js';
 import { CollisionSystem } from './systems/CollisionSystem.js';
+import { Hud } from './systems/Hud.js';
 import { Paddle } from './entities/Paddle.js';
 import { Ball } from './entities/Ball.js';
 import { LevelBuilder } from './systems/LevelBuilder.js';
@@ -22,6 +23,9 @@ export class ArkanoidGame {
 
         this.state  = STATE.MENU;
         this.lives  = STARTING_LIVES;
+        this.level  = 1;
+
+        this.hudView = null;
 
         this._overlay      = null;
         this._overlayTitle = null;
@@ -59,6 +63,14 @@ export class ArkanoidGame {
             this.world.addChild(brick.view);
         }
 
+        // HUD — очки, жизни, уровень. Слой this.hud поверх мира.
+        this.hudView = new Hud();
+        this.hud.addChild(this.hudView.view);
+        this.hudView.setScore(this.score);
+        this.hudView.setLives(this.lives);
+        this.hudView.setLevel(this.level);
+
+        // HTML-оверлеи для состояний
         this._overlay      = document.getElementById('overlay');
         this._overlayTitle = document.getElementById('overlay-title');
         this._overlayText  = document.getElementById('overlay-text');
@@ -105,6 +117,7 @@ export class ArkanoidGame {
         if (brickHit && brickHit.destroyed) {
             this.world.removeChild(brickHit.brick.view);
             this.score += SCORE_PER_BRICK;
+            this.hudView.setScore(this.score);
         }
 
         // Победа
@@ -130,6 +143,7 @@ export class ArkanoidGame {
 
     _loseLife() {
         this.lives -= 1;
+        this.hudView.setLives(this.lives);
 
         if (this.lives <= 0) {
             this.setState(STATE.GAME_OVER);
@@ -154,6 +168,11 @@ export class ArkanoidGame {
         for (const brick of this.bricks) {
             this.world.addChild(brick.view);
         }
+
+        // Обновляем HUD под новый старт.
+        this.hudView.setScore(this.score);
+        this.hudView.setLives(this.lives);
+        this.hudView.setLevel(this.level);
 
         this.setState(STATE.PLAYING);
     }
