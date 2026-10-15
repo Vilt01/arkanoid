@@ -1,5 +1,5 @@
 import { Application, Container } from 'pixi.js';
-import { GAME, COLORS, SCORE_PER_BRICK } from './utils/constants.js';
+import { GAME, COLORS, SCORE_PER_BRICK, STATE, STARTING_LIVES } from './utils/constants.js';
 import { InputSystem } from './systems/InputSystem.js';
 import { CollisionSystem } from './systems/CollisionSystem.js';
 import { Paddle } from './entities/Paddle.js';
@@ -10,15 +10,22 @@ export class ArkanoidGame {
     constructor(containerId) {
         this.containerId = containerId;
 
-        this.app    = null;  // Pixi Application — рендерер + ticker
-        this.world  = null;  // игровой мир: паддл, мяч, блоки
-        this.hud    = null;  // UI-слой поверх мира: очки, жизни, оверлеи
+        this.app    = null;
+        this.world  = null;
+        this.hud    = null;
 
         this.input  = new InputSystem();
         this.paddle = null;
         this.ball   = null;
         this.bricks = [];
         this.score  = 0;
+
+        this.state  = STATE.MENU;
+        this.lives  = STARTING_LIVES;
+
+        this._overlay      = null;
+        this._overlayTitle = null;
+        this._overlayText  = null;
     }
 
     async init() {
@@ -39,21 +46,24 @@ export class ArkanoidGame {
         }
         container.appendChild(this.app.canvas);
 
-        // Два слоя: world снизу, hud сверху.
         this.world = new Container();
         this.hud   = new Container();
         this.app.stage.addChild(this.world, this.hud);
 
-        // Сущности
         this.paddle = new Paddle();
         this.ball   = new Ball();
         this.world.addChild(this.paddle.view, this.ball.view);
 
-        // Блоки
         this.bricks = LevelBuilder.build();
         for (const brick of this.bricks) {
             this.world.addChild(brick.view);
         }
+
+        this._overlay      = document.getElementById('overlay');
+        this._overlayTitle = document.getElementById('overlay-title');
+        this._overlayText  = document.getElementById('overlay-text');
+
+        this.setState(STATE.MENU);
 
         this.app.ticker.add(this.update, this);
     }
@@ -61,34 +71,123 @@ export class ArkanoidGame {
     update(ticker) {
         const dt = ticker.deltaTime;
 
-        // 1. Движение
+        // Не PLAYING — игра заморожена, только читаем клавиши.
+        if (this.state !== STATE.PLAYING) {
+            this._handleNonPlayingState();
+            this.input.endFrame();
+            return;
+        }
+
+        // Esc — пауза.
+        if (this.input.wasPressed('escape')) {
+            this.setState(STATE.PAUSED);
+            this.input.endFrame();
+            return;
+        }
+
+        // Движение
         this.paddle.update(this.input, dt);
         this.ball.update(dt);
 
-        // 2. Стены
+        // Стены
         const wallResult = CollisionSystem.ballVsWalls(this.ball);
         if (wallResult === 'bottom') {
-            // Пока — просто рестарт мяча. На шаге 9 — потеря жизни.
-            this.ball.reset();
+            this._loseLife();
+            this.input.endFrame();
+            return;
         }
 
-        // 3. Ракетка
+        // Ракетка
         CollisionSystem.ballVsPaddle(this.ball, this.paddle);
 
-        // 4. Блоки
+        // Блоки
         const brickHit = CollisionSystem.ballVsBricks(this.ball, this.bricks);
         if (brickHit && brickHit.destroyed) {
             this.world.removeChild(brickHit.brick.view);
             this.score += SCORE_PER_BRICK;
-            console.log('Score:', this.score);
         }
 
-        // 5. Победа
+        // Победа
         if (CollisionSystem.allBricksDestroyed(this.bricks)) {
-            console.log('VICTORY! Final score:', this.score);
+            this.setState(STATE.VICTORY);
         }
 
         this.input.endFrame();
+    }
+
+    _handleNonPlayingState() {
+        const space = this.input.wasPressed(' ');
+        const esc   = this.input.wasPressed('escape');
+
+        if (this.state === STATE.MENU && space) {
+            this._startNewGame();
+        } else if (this.state === STATE.PAUSED && (esc || space)) {
+            this.setState(STATE.PLAYING);
+        } else if ((this.state === STATE.GAME_OVER || this.state === STATE.VICTORY) && space) {
+            this._startNewGame();
+        }
+    }
+
+    _loseLife() {
+        this.lives -= 1;
+
+        if (this.lives <= 0) {
+            this.setState(STATE.GAME_OVER);
+            return;
+        }
+
+        this.paddle.reset();
+        this.ball.reset();
+    }
+
+    _startNewGame() {
+        this.score = 0;
+        this.lives = STARTING_LIVES;
+        this.paddle.reset();
+        this.ball.reset();
+
+        // Убираем старые блоки со сцены и строим новые.
+        for (const brick of this.bricks) {
+            if (brick.view.parent) brick.view.parent.removeChild(brick.view);
+        }
+        this.bricks = LevelBuilder.build();
+        for (const brick of this.bricks) {
+            this.world.addChild(brick.view);
+        }
+
+        this.setState(STATE.PLAYING);
+    }
+
+    setState(newState) {
+        this.state = newState;
+
+        switch (newState) {
+            case STATE.MENU:
+                this._showOverlay('ARKANOID', 'Press SPACE to start');
+                break;
+            case STATE.PLAYING:
+                this._hideOverlay();
+                break;
+            case STATE.PAUSED:
+                this._showOverlay('PAUSED', 'Press ESC to resume');
+                break;
+            case STATE.GAME_OVER:
+                this._showOverlay('GAME OVER', `Score: ${this.score}\nPress SPACE to restart`);
+                break;
+            case STATE.VICTORY:
+                this._showOverlay('VICTORY!', `Score: ${this.score}\nPress SPACE to restart`);
+                break;
+        }
+    }
+
+    _showOverlay(title, text) {
+        this._overlayTitle.textContent = title;
+        this._overlayText.textContent  = text;
+        this._overlay.classList.add('visible');
+    }
+
+    _hideOverlay() {
+        this._overlay.classList.remove('visible');
     }
 
     destroy() {

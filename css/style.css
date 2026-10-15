@@ -36,3 +36,46 @@ body {
     display: block;
     image-rendering: pixelated;
 }
+.overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 6, 10, 0.85);
+    z-index: 10;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+    opacity: 0;
+    font-family: "Press Start 2P", monospace;
+}
+
+.overlay.visible {
+    opacity: 1;
+}
+
+.overlay-content {
+    text-align: center;
+    padding: 20px;
+}
+
+.overlay-title {
+    font-size: 32px;
+    color: #00ffcc;
+    text-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+    margin-bottom: 24px;
+    letter-spacing: 4px;
+}
+
+.overlay-text {
+    font-size: 12px;
+    color: #f0f0f0;
+    line-height: 1.8;
+    white-space: pre-line;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}

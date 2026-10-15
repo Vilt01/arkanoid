@@ -44,3 +44,10 @@ export const COLORS = {
 
 export const SCORE_PER_BRICK = 10;
 export const STARTING_LIVES = 3;
+export const STATE = {
+    MENU:      'MENU',
+    PLAYING:   'PLAYING',
+    PAUSED:    'PAUSED',
+    GAME_OVER: 'GAME_OVER',
+    VICTORY:   'VICTORY',
+};
