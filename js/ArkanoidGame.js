@@ -178,12 +178,16 @@ export class ArkanoidGame {
         const view = brick.view;
         view.scale.set(bumpScale);
 
+        // Вспышка белым — игрок видит, что попал, но не сломал.
+        brick.setFlashing(true);
+
         const tick = (t) => {
             elapsed += t.deltaMS / 1000;
             const k = Math.min(elapsed / duration, 1);
             view.scale.set(bumpScale - (bumpScale - startScale) * k);
             if (k >= 1) {
                 view.scale.set(startScale);
+                brick.setFlashing(false);
                 this.app.ticker.remove(tick);
             }
         };

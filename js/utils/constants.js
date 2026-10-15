@@ -14,6 +14,7 @@ export const BALL = {
     RADIUS: 8,
     SPEED: 6,
     SPEED_INCREASE: 0.04,
+    MAX_SPEED: 11,
     MAX_BOUNCE_ANGLE: Math.PI / 3,
 };
 

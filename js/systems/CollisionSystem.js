@@ -1,8 +1,6 @@
 import { GAME, BALL, PADDLE, SCORE_PER_BRICK } from '../utils/constants.js';
 
-
 export class CollisionSystem {
-   
     static overlaps(a, b) {
         return (
             a.x < b.x + b.width &&
@@ -78,9 +76,10 @@ export class CollisionSystem {
 
             const destroyed = brick.hit();
 
-            // Ускорение мяча после удара.
+            // Ускорение мяча после удара с ограничением сверху.
+            // MAX_SPEED предотвращает туннелирование сквозь ракетку.
             const speed = Math.hypot(ball.vx, ball.vy);
-            const newSpeed = speed + BALL.SPEED_INCREASE;
+            const newSpeed = Math.min(speed + BALL.SPEED_INCREASE, BALL.MAX_SPEED);
             const scale = newSpeed / speed;
             ball.vx *= scale;
             ball.vy *= scale;
