@@ -7,6 +7,10 @@ import { Paddle } from './entities/Paddle.js';
 import { Ball } from './entities/Ball.js';
 import { LevelBuilder } from './systems/LevelBuilder.js';
 
+const DESTROY_DURATION = 0.15;  // секунд
+const SHAKE_DURATION   = 0.25;  // секунд
+const SHAKE_MAGNITUDE  = 8;     // пикселей
+
 export class ArkanoidGame {
     constructor(containerId) {
         this.containerId = containerId;
@@ -26,6 +30,10 @@ export class ArkanoidGame {
         this.level  = 1;
 
         this.hudView = null;
+
+        // Анимации
+        this.dyingBricks = [];  // [{ view, elapsed }]
+        this.shakeTime   = 0;   // оставшееся время тряски, сек
 
         this._overlay      = null;
         this._overlayTitle = null;
@@ -63,14 +71,12 @@ export class ArkanoidGame {
             this.world.addChild(brick.view);
         }
 
-        // HUD — очки, жизни, уровень. Слой this.hud поверх мира.
         this.hudView = new Hud();
         this.hud.addChild(this.hudView.view);
         this.hudView.setScore(this.score);
         this.hudView.setLives(this.lives);
         this.hudView.setLevel(this.level);
 
-        // HTML-оверлеи для состояний
         this._overlay      = document.getElementById('overlay');
         this._overlayTitle = document.getElementById('overlay-title');
         this._overlayText  = document.getElementById('overlay-text');
@@ -81,27 +87,28 @@ export class ArkanoidGame {
     }
 
     update(ticker) {
-        const dt = ticker.deltaTime;
+        const dt    = ticker.deltaTime;
+        const dtSec = ticker.deltaMS / 1000;
 
-        // Не PLAYING — игра заморожена, только читаем клавиши.
+        // Анимации обновляются ВСЕГДА — даже в меню / на паузе,
+        // чтобы эффекты корректно завершались.
+        this._updateEffects(dtSec);
+
         if (this.state !== STATE.PLAYING) {
             this._handleNonPlayingState();
             this.input.endFrame();
             return;
         }
 
-        // Esc — пауза.
         if (this.input.wasPressed('escape')) {
             this.setState(STATE.PAUSED);
             this.input.endFrame();
             return;
         }
 
-        // Движение
         this.paddle.update(this.input, dt);
         this.ball.update(dt);
 
-        // Стены
         const wallResult = CollisionSystem.ballVsWalls(this.ball);
         if (wallResult === 'bottom') {
             this._loseLife();
@@ -109,23 +116,91 @@ export class ArkanoidGame {
             return;
         }
 
-        // Ракетка
         CollisionSystem.ballVsPaddle(this.ball, this.paddle);
 
-        // Блоки
         const brickHit = CollisionSystem.ballVsBricks(this.ball, this.bricks);
         if (brickHit && brickHit.destroyed) {
-            this.world.removeChild(brickHit.brick.view);
+            // Не удаляем сразу — запускаем анимацию разрушения.
+            this._startBrickDestroy(brickHit.brick);
             this.score += SCORE_PER_BRICK;
             this.hudView.setScore(this.score);
+        } else if (brickHit) {
+            // hp: 2 → после первого удара — короткий подскок.
+            this._startBrickBump(brickHit.brick);
         }
 
-        // Победа
         if (CollisionSystem.allBricksDestroyed(this.bricks)) {
             this.setState(STATE.VICTORY);
         }
 
         this.input.endFrame();
+    }
+
+    _updateEffects(dtSec) {
+        // Разрушение блоков
+        for (let i = this.dyingBricks.length - 1; i >= 0; i--) {
+            const d = this.dyingBricks[i];
+            d.elapsed += dtSec;
+            const t = Math.min(d.elapsed / DESTROY_DURATION, 1);
+            d.view.scale.set(1 + t * 0.6);
+            d.view.alpha = 1 - t;
+
+            if (t >= 1) {
+                if (d.view.parent) d.view.parent.removeChild(d.view);
+                this.dyingBricks.splice(i, 1);
+            }
+        }
+
+        // Тряска экрана — двигаем только world, HUD стоит на месте.
+        if (this.shakeTime > 0) {
+            this.shakeTime -= dtSec;
+            if (this.shakeTime <= 0) {
+                this.shakeTime = 0;
+                this.world.x = 0;
+                this.world.y = 0;
+            } else {
+                const k = this.shakeTime / SHAKE_DURATION;
+                const m = SHAKE_MAGNITUDE * k;
+                this.world.x = (Math.random() - 0.5) * 2 * m;
+                this.world.y = (Math.random() - 0.5) * 2 * m;
+            }
+        }
+    }
+
+    _startBrickDestroy(brick) {
+        this.dyingBricks.push({
+            view: brick.view,
+            elapsed: 0,
+        });
+    }
+
+    _startBrickBump(brick) {
+        // Быстрый визуальный «удар» — блок чуть-чуть увеличивается
+        // и возвращается за 100 мс.
+        const startScale = 1;
+        const bumpScale  = 1.15;
+        let elapsed = 0;
+        const duration = 0.1;
+
+        const view = brick.view;
+        view.scale.set(bumpScale);
+
+        // Мини-анимация прямо здесь, вне общего ticker'а — короткая,
+        // не нуждается в постоянном слушателе.
+        const tick = (t) => {
+            elapsed += t.deltaMS / 1000;
+            const k = Math.min(elapsed / duration, 1);
+            view.scale.set(bumpScale - (bumpScale - startScale) * k);
+            if (k >= 1) {
+                view.scale.set(startScale);
+                this.app.ticker.remove(tick);
+            }
+        };
+        this.app.ticker.add(tick);
+    }
+
+    _startShake() {
+        this.shakeTime = SHAKE_DURATION;
     }
 
     _handleNonPlayingState() {
@@ -145,6 +220,8 @@ export class ArkanoidGame {
         this.lives -= 1;
         this.hudView.setLives(this.lives);
 
+        this._startShake();
+
         if (this.lives <= 0) {
             this.setState(STATE.GAME_OVER);
             return;
@@ -155,12 +232,17 @@ export class ArkanoidGame {
     }
 
     _startNewGame() {
+        // Сброс анимаций — старые "умирающие" блоки не должны остаться.
+        this.dyingBricks.length = 0;
+        this.shakeTime = 0;
+        this.world.x = 0;
+        this.world.y = 0;
+
         this.score = 0;
         this.lives = STARTING_LIVES;
         this.paddle.reset();
         this.ball.reset();
 
-        // Убираем старые блоки со сцены и строим новые.
         for (const brick of this.bricks) {
             if (brick.view.parent) brick.view.parent.removeChild(brick.view);
         }
@@ -169,7 +251,6 @@ export class ArkanoidGame {
             this.world.addChild(brick.view);
         }
 
-        // Обновляем HUD под новый старт.
         this.hudView.setScore(this.score);
         this.hudView.setLives(this.lives);
         this.hudView.setLevel(this.level);
