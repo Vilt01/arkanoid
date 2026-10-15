@@ -1,16 +1,18 @@
 import { Application, Container } from 'pixi.js';
 import { GAME, COLORS } from './utils/constants.js';
 import { InputSystem } from './systems/InputSystem.js';
+import { Paddle } from './entities/Paddle.js';
 
 export class ArkanoidGame {
     constructor(containerId) {
         this.containerId = containerId;
 
-        this.app   = null;  // Pixi Application — рендерер + ticker
-        this.world = null;  // игровой мир: паддл, мяч, блоки
-        this.hud   = null;  // UI-слой поверх мира: очки, жизни, оверлеи
+        this.app    = null;
+        this.world  = null;
+        this.hud    = null;
 
-        this.input = new InputSystem();
+        this.input  = new InputSystem();
+        this.paddle = null;
     }
 
     async init() {
@@ -35,11 +37,17 @@ export class ArkanoidGame {
         this.hud   = new Container();
         this.app.stage.addChild(this.world, this.hud);
 
+        this.paddle = new Paddle();
+        this.world.addChild(this.paddle.view);
+
         this.app.ticker.add(this.update, this);
     }
 
-    update(_ticker) {
-        
+    update(ticker) {
+        const dt = ticker.deltaTime;
+
+        this.paddle.update(this.input, dt);
+
         this.input.endFrame();
     }
 
