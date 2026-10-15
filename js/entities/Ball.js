@@ -41,30 +41,8 @@ export class Ball {
         this.vy = -Math.cos(angle) * BALL.SPEED; // минус — вверх по экрану
     }
 
-    update(dt) {
+   update(dt) {
         this.view.x += this.vx * dt;
         this.view.y += this.vy * dt;
-
-        // Левая стена
-        if (this.view.x - BALL.RADIUS <= 0) {
-            this.view.x = BALL.RADIUS;
-            this.vx = -this.vx;
-        }
-        // Правая стена
-        if (this.view.x + BALL.RADIUS >= GAME.WIDTH) {
-            this.view.x = GAME.WIDTH - BALL.RADIUS;
-            this.vx = -this.vx;
-        }
-        // Верхняя стена
-        if (this.view.y - BALL.RADIUS <= 0) {
-            this.view.y = BALL.RADIUS;
-            this.vy = -this.vy;
-        }
-
-        // Нижняя граница. Временно — перезапуск.
-        // На шаге 9 заменим на «потеря жизни».
-        if (this.view.y - BALL.RADIUS > GAME.HEIGHT) {
-            this.reset();
-        }
     }
 }
