@@ -2,6 +2,7 @@ import { Application, Container } from 'pixi.js';
 import { GAME, COLORS } from './utils/constants.js';
 import { InputSystem } from './systems/InputSystem.js';
 import { Paddle } from './entities/Paddle.js';
+import { Ball } from './entities/Ball.js';
 
 export class ArkanoidGame {
     constructor(containerId) {
@@ -13,6 +14,7 @@ export class ArkanoidGame {
 
         this.input  = new InputSystem();
         this.paddle = null;
+        this.ball   = null;
     }
 
     async init() {
@@ -38,7 +40,8 @@ export class ArkanoidGame {
         this.app.stage.addChild(this.world, this.hud);
 
         this.paddle = new Paddle();
-        this.world.addChild(this.paddle.view);
+        this.ball   = new Ball();
+        this.world.addChild(this.paddle.view, this.ball.view);
 
         this.app.ticker.add(this.update, this);
     }
@@ -47,6 +50,7 @@ export class ArkanoidGame {
         const dt = ticker.deltaTime;
 
         this.paddle.update(this.input, dt);
+        this.ball.update(dt);
 
         this.input.endFrame();
     }
