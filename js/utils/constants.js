@@ -41,3 +41,6 @@ export const COLORS = {
         0xaa44ff, // нижний ряд — фиолетовый
     ],
 };
+
+export const SCORE_PER_BRICK = 10;
+export const STARTING_LIVES = 3;

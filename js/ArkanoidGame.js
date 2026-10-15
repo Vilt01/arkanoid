@@ -1,5 +1,6 @@
 import { Application, Container } from 'pixi.js';
 import { GAME, COLORS } from './utils/constants.js';
+import { InputSystem } from './systems/InputSystem.js';
 
 export class ArkanoidGame {
     constructor(containerId) {
@@ -8,6 +9,8 @@ export class ArkanoidGame {
         this.app   = null;  // Pixi Application — рендерер + ticker
         this.world = null;  // игровой мир: паддл, мяч, блоки
         this.hud   = null;  // UI-слой поверх мира: очки, жизни, оверлеи
+
+        this.input = new InputSystem();
     }
 
     async init() {
@@ -36,12 +39,14 @@ export class ArkanoidGame {
     }
 
     update(_ticker) {
-       
+        
+        this.input.endFrame();
     }
 
     destroy() {
         if (!this.app) return;
         this.app.ticker.remove(this.update, this);
+        this.input.destroy();
         this.app.destroy(true, { children: true, texture: true });
         this.app = null;
     }
