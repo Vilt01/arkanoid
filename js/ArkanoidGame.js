@@ -3,6 +3,7 @@ import { GAME, COLORS } from './utils/constants.js';
 import { InputSystem } from './systems/InputSystem.js';
 import { Paddle } from './entities/Paddle.js';
 import { Ball } from './entities/Ball.js';
+import { LevelBuilder } from './systems/LevelBuilder.js';
 
 export class ArkanoidGame {
     constructor(containerId) {
@@ -15,6 +16,7 @@ export class ArkanoidGame {
         this.input  = new InputSystem();
         this.paddle = null;
         this.ball   = null;
+        this.bricks = [];
     }
 
     async init() {
@@ -42,6 +44,11 @@ export class ArkanoidGame {
         this.paddle = new Paddle();
         this.ball   = new Ball();
         this.world.addChild(this.paddle.view, this.ball.view);
+
+        this.bricks = LevelBuilder.build();
+        for (const brick of this.bricks) {
+            this.world.addChild(brick.view);
+        }
 
         this.app.ticker.add(this.update, this);
     }
